@@ -1,14 +1,27 @@
-import { StyleSheet } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSSE } from '@/hooks/useSSE';
+import { ColonyScene } from '@/components/colony/ColonyScene';
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+export default function ColonyScreen() {
+  const { data, connected } = useSSE();
+  const insets = useSafeAreaInsets();
 
-export default function TabOneScreen() {
+  const agents = data?.colony
+    ? Object.entries(data.colony).map(([id, agent]: [string, any]) => ({
+        id,
+        ...agent,
+      }))
+    : [];
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+      <ColonyScene
+        agents={agents}
+        connected={connected}
+        topInset={insets.top}
+      />
     </View>
   );
 }
@@ -16,16 +29,6 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+    backgroundColor: '#2A1850',
   },
 });
