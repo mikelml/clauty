@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Vibration } from 'react-native';
 import { CHAT_URL, HISTORY_URL, STATUS_URL } from '@/constants/config';
+import { formatReminderMessage } from '@/utils/reminderFormatter';
 
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   timestamp: number;
+  agentId?: string;
+  isReminder?: boolean;
+  isError?: boolean;
 };
 
 function uid() {
@@ -34,6 +39,30 @@ export function useChat() {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+
+  /**
+   * Inject a proactive reminder into the chat feed.
+   * Called from the screen/component that connects useColony's onReminder to this.
+   */
+  const injectReminder = useCallback((data: { agentId?: string; text: string }) => {
+    if (!mountedRef.current) return;
+    try {
+      Vibration.vibrate([0, 200, 100, 200]);
+    } catch {}
+
+    const formattedText = formatReminderMessage(data.agentId || 'inventor', data.text);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: uid(),
+        role: 'assistant',
+        text: formattedText,
+        timestamp: Date.now(),
+        agentId: data.agentId || 'inventor',
+        isReminder: true,
+      },
+    ]);
+  }, []);
 
   // Check gateway connectivity + load history on mount
   useEffect(() => {
@@ -79,7 +108,7 @@ export function useChat() {
     return () => { mountedRef.current = false; };
   }, []);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, agentId?: string) => {
     if (!text.trim() || sending) return;
 
     const userMsg: ChatMessage = {
@@ -94,16 +123,40 @@ export function useChat() {
     setError(null);
 
     try {
-      const res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text.trim() }),
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 35_000);
+
+      let res: Response;
+      try {
+        res = await fetch(CHAT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text.trim(),
+            agentId: agentId || undefined,
+            sessionKey: 'clauty:web:main',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+      } catch (fetchErr: any) {
+        clearTimeout(timer);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('El agente está pensando... intenta de nuevo en un momento.');
+        }
+        if (fetchErr.message?.includes('Network request failed') || fetchErr.message?.includes('Failed to fetch')) {
+          throw new Error('Sin conexión. Verifica tu red o que el plugin esté corriendo.');
+        }
+        throw fetchErr;
+      }
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error del servidor');
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('Token de acceso inválido. Verifica la configuración.');
+        }
+        throw new Error(data.error || `Error del servidor (${res.status})`);
       }
 
       if (mountedRef.current) {
@@ -114,17 +167,30 @@ export function useChat() {
             role: 'assistant',
             text: data.response,
             timestamp: Date.now(),
+            agentId: data.agentId || agentId,
           },
         ]);
       }
     } catch (err: any) {
+      console.error('[chat error]', err);
       if (mountedRef.current) {
-        setError(err.message || 'Error enviando mensaje');
+        const errText = err.message || 'No se pudo conectar con el agente. Intenta de nuevo.';
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            role: 'assistant',
+            text: errText,
+            timestamp: Date.now(),
+            isError: true,
+          } as ChatMessage,
+        ]);
+        setError(errText);
       }
     } finally {
       if (mountedRef.current) setSending(false);
     }
   }, [sending]);
 
-  return { messages, sending, connected, error, sendMessage };
+  return { messages, sending, connected, error, sendMessage, injectReminder };
 }

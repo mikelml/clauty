@@ -1,14 +1,14 @@
 import React from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { IconEmpty } from "@/components/icons/TabIcons";
-import { useSSE } from "@/hooks/useSSE";
+import { useColony } from "@/hooks/useColony";
 import { theme, getAgentColor } from "@/constants/Colors";
 
 export default function LogScreen() {
-  const { data, connected } = useSSE();
+  const { colony, isConnected: connected } = useColony();
 
-  const entries = data?.colony
-    ? Object.entries(data.colony).map(([id, agent], i) => ({
+  const entries = colony
+    ? Object.entries(colony).map(([id, agent], i) => ({
         id,
         color: getAgentColor(id, i),
         time: new Date(agent.registeredAt).toLocaleTimeString(),

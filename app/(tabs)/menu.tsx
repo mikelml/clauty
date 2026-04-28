@@ -1,10 +1,10 @@
 import React from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { theme } from "@/constants/Colors";
-import { useSSE } from "@/hooks/useSSE";
+import { useColony } from "@/hooks/useColony";
 
 export default function MenuScreen() {
-  const { connected } = useSSE();
+  const { isConnected: connected } = useColony();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

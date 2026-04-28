@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import Svg, { Path, Circle, Line } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useChat, ChatMessage } from "@/hooks/useChat";
+import { useColony } from "@/hooks/useColony";
+import { useReminders } from "@/hooks/useReminders";
 import { agentColors } from "@/constants/Colors";
 import { GenerativeAvatar } from "@/components/colony/GenerativeAvatar";
+import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { AgentSelector } from "@/components/chat/AgentSelector";
+import { ReminderBubble } from "@/components/chat/ReminderBubble";
 
 // ==================== ICONS ====================
 
@@ -38,9 +43,31 @@ function TypingDots() {
 
 // ==================== MESSAGE BUBBLE ====================
 
-function MessageBubble({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
+function MessageBubble({
+  msg,
+  isLast,
+  onReminderComplete,
+}: {
+  msg: ChatMessage;
+  isLast: boolean;
+  onReminderComplete?: (id: string) => void;
+}) {
   const isUser = msg.role === "user";
   const agentColor = msg.agentId ? (agentColors[msg.agentId] || "#8B6AAE") : "#8B6AAE";
+  const isReminder = !isUser && msg.isReminder;
+  const isError = !isUser && (msg as any).isError;
+
+  // Reminder messages use the dedicated ReminderBubble component
+  if (isReminder) {
+    return (
+      <ReminderBubble
+        reminderId={msg.id}
+        text={msg.text}
+        agentName={msg.agentId ? msg.agentId.charAt(0).toUpperCase() + msg.agentId.slice(1) : "Asistente"}
+        onComplete={onReminderComplete ?? (() => {})}
+      />
+    );
+  }
 
   return (
     <View style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowBot]}>
@@ -49,21 +76,32 @@ function MessageBubble({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
         <View style={s.avatarCol}>
           <GenerativeAvatar
             id={msg.agentId || "colony"}
-            color={agentColor}
+            color={isError ? "#FF6B6B" : agentColor}
             size={28}
           />
         </View>
       )}
 
-      <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleBot]}>
-        {/* Agent name badge */}
-        {!isUser && msg.agentId && (
-          <Text style={[s.agentLabel, { color: agentColor }]}>
-            {msg.agentId.charAt(0).toUpperCase() + msg.agentId.slice(1)}
+      <View style={[
+        s.bubble,
+        isUser ? s.bubbleUser : s.bubbleBot,
+        isError && s.bubbleError,
+      ]}>
+        {/* Error indicator */}
+        {isError && (
+          <Text style={s.errorBadge}>
+            {"\u26A0\uFE0F"} Error de conexión
           </Text>
         )}
 
-        <Text style={[s.msgText, isUser && s.msgTextUser]}>
+        {/* Agent name badge */}
+        {!isUser && msg.agentId && !isError && (
+          <Text style={[s.agentLabel, { color: agentColor }]}>
+            {msg.agentId.charAt(0).toUpperCase() + msg.agentId.slice(1)} dice:
+          </Text>
+        )}
+
+        <Text style={[s.msgText, isUser && s.msgTextUser, isError && s.msgTextError]}>
           {msg.text}
         </Text>
 
@@ -78,24 +116,6 @@ function MessageBubble({ msg, isLast }: { msg: ChatMessage; isLast: boolean }) {
 
       {/* Spacer for user messages (no avatar on right) */}
       {isUser && <View style={{ width: 36 }} />}
-    </View>
-  );
-}
-
-// ==================== STREAMING BUBBLE ====================
-
-function StreamingBubble({ text }: { text: string }) {
-  return (
-    <View style={[s.msgRow, s.msgRowBot]}>
-      <View style={s.avatarCol}>
-        <GenerativeAvatar id="colony" color="#8B6AAE" size={28} />
-      </View>
-      <View style={[s.bubble, s.bubbleBot]}>
-        <Text style={s.msgText}>
-          {text}
-          <Text style={s.cursor}>{"\u258C"}</Text>
-        </Text>
-      </View>
     </View>
   );
 }
@@ -149,16 +169,36 @@ function ChatInput({
 // ==================== MAIN SCREEN ====================
 
 export default function ChatScreen() {
-  const { connected, messages, sending, error, sendMessage } =
-    useChat();
+  const { connected, messages, sending, error, sendMessage, injectReminder } = useChat();
+  const { agents } = useColony({
+    onReminder: injectReminder,
+  });
+  const { cancelReminder } = useReminders();
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
-  const insets = useSafeAreaInsets();
+  const { bottom: bottomInset } = useSafeAreaInsets();
+
+  const handleReminderComplete = useCallback(async (id: string) => {
+    // console.log('[Chat] Reminder completado:', id);
+    await cancelReminder(id);
+  }, [cancelReminder]);
+
+  // Select first available agent by default
+  useEffect(() => {
+    if (agents.length > 0 && !selectedAgentId) {
+      setSelectedAgentId(agents[0].id);
+    }
+  }, [agents, selectedAgentId]);
 
   useEffect(() => {
     if (listRef.current && messages.length > 0) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages.length]);
+
+  const handleSend = (text: string) => {
+    sendMessage(text, selectedAgentId || undefined);
+  };
 
   return (
     <KeyboardAvoidingView
@@ -180,7 +220,11 @@ export default function ChatScreen() {
         ref={listRef}
         data={messages}
         renderItem={({ item, index }) => (
-          <MessageBubble msg={item} isLast={index === messages.length - 1} />
+          <MessageBubble
+            msg={item}
+            isLast={index === messages.length - 1}
+            onReminderComplete={handleReminderComplete}
+          />
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={s.list}
@@ -196,12 +240,26 @@ export default function ChatScreen() {
           </View>
         }
         ListFooterComponent={
-          sending ? <StreamingBubble text="Pensando..." /> : null
+          sending ? (
+            <TypingIndicator
+              agentId={selectedAgentId || "colony"}
+              color={selectedAgentId ? (agentColors[selectedAgentId] || "#8B6AAE") : "#8B6AAE"}
+            />
+          ) : null
         }
       />
 
+      {/* Agent Selector (only shown if multiple agents) */}
+      <AgentSelector
+        agents={agents}
+        selectedId={selectedAgentId}
+        onSelect={setSelectedAgentId}
+      />
+
       {/* Input */}
-      <ChatInput onSend={sendMessage} disabled={!connected || sending} />
+      <View style={{ paddingBottom: bottomInset }}>
+        <ChatInput onSend={handleSend} disabled={!connected || sending} />
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -309,6 +367,32 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.07)",
     borderBottomLeftRadius: 4,
   },
+  bubbleReminder: {
+    backgroundColor: "rgba(245,166,35,0.12)",
+    borderLeftWidth: 3,
+    borderLeftColor: "#F5A623",
+  },
+  bubbleError: {
+    backgroundColor: "rgba(255,107,107,0.10)",
+    borderLeftWidth: 3,
+    borderLeftColor: "#FF6B6B",
+  },
+
+  // Reminder badge
+  reminderBadge: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#F5A623",
+    marginBottom: 4,
+  },
+
+  // Error badge
+  errorBadge: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FF6B6B",
+    marginBottom: 4,
+  },
 
   // Agent label
   agentLabel: {
@@ -327,6 +411,9 @@ const s = StyleSheet.create({
   msgTextUser: {
     color: "#fff",
   },
+  msgTextError: {
+    color: "rgba(255,150,150,0.9)",
+  },
 
   // Timestamp
   time: {
@@ -337,12 +424,6 @@ const s = StyleSheet.create({
   },
   timeUser: {
     color: "rgba(255,255,255,0.4)",
-  },
-
-  // Cursor
-  cursor: {
-    color: "#FFD700",
-    fontSize: 15,
   },
 
   // Input bar
@@ -381,10 +462,5 @@ const s = StyleSheet.create({
   },
   sendBtnPressed: {
     backgroundColor: "#7A52A8",
-  },
-  sendIcon: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
   },
 });

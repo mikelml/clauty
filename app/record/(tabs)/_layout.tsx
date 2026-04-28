@@ -1,7 +1,7 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { ColonyTabBar } from '@/components/colony/ColonyTabBar';
-import { useReminders } from '@/hooks/useReminders';
+import { useMockPersona } from '@/mock/MockContext';
 
 const headerBase = {
   backgroundColor: '#1A0F2E',
@@ -9,9 +9,13 @@ const headerBase = {
   elevation: 0,
 } as const;
 
-export default function TabLayout() {
-  const { reminders } = useReminders();
-  const pendingCount = reminders.filter((r) => r.status === 'pending').length;
+export default function RecordTabsLayout() {
+  const persona = useMockPersona();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!persona) router.replace('/record/login');
+  }, [persona, router]);
 
   return (
     <Tabs tabBar={(props) => <ColonyTabBar {...props} />}>
@@ -23,7 +27,6 @@ export default function TabLayout() {
           headerStyle: headerBase,
           headerTintColor: 'rgba(255,255,255,0.9)',
           headerTitleStyle: { fontWeight: '600', fontSize: 17 },
-          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
         }}
       />
       <Tabs.Screen

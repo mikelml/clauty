@@ -30,7 +30,14 @@ type Agent = {
   state: string;
   metrics: { tasksCompleted: number; tasksFailed: number; tokensUsed: number };
 };
-type Props = { agents: Agent[]; connected: boolean; topInset: number };
+type Props = {
+  agents: Agent[];
+  connected: boolean;
+  topInset: number;
+  onAgentPress?: (agent: Agent) => void;
+  birthingAgentId?: string;
+  birthingColor?: string;
+};
 
 // ==================== CONSTANTS ====================
 
@@ -71,10 +78,10 @@ const agentOp = (s:string) =>
 
 // ==================== WALKING AGENT ====================
 
-function WalkingAgent({ agent, baseX, baseY, route, color, onPress, onPosUpdate }: {
+function WalkingAgent({ agent, baseX, baseY, route, color, onPosUpdate }: {
   agent: Agent; baseX: number; baseY: number;
   route: { x: number; y: number }[];
-  color: string; onPress: () => void;
+  color: string;
   onPosUpdate?: (x: number, y: number) => void;
 }) {
   const walks = agent.state !== 'dormant' && agent.state !== 'dead';
@@ -117,14 +124,14 @@ function WalkingAgent({ agent, baseX, baseY, route, color, onPress, onPosUpdate 
   const op = agentOp(agent.state);
   const act = agent.state === 'thinking' || agent.state === 'acting';
 
-  const pTouch  = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY - 6 + dy.value }));
-  const pGlow   = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY - 6 + dy.value }));
-  const pShadow = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY + 1 + dy.value }));
-  const pBody   = useAnimatedProps(() => ({ x: baseX - 3.5 + dx.value, y: baseY - 10 + dy.value }));
-  const pHead   = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY - 13 + dy.value }));
-  const pEyeL   = useAnimatedProps(() => ({ cx: baseX - 1.3 + dx.value, cy: baseY - 13.3 + dy.value }));
-  const pEyeR   = useAnimatedProps(() => ({ cx: baseX + 1.5 + dx.value, cy: baseY - 13.3 + dy.value }));
-  const pLabel  = useAnimatedProps(() => ({ x: baseX + dx.value, y: baseY + 8 + dy.value }));
+  const pTouch  = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY - 6 + dy.value }), [baseX, baseY, dx, dy]);
+  const pGlow   = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY - 6 + dy.value }), [baseX, baseY, dx, dy]);
+  const pShadow = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY + 1 + dy.value }), [baseX, baseY, dx, dy]);
+  const pBody   = useAnimatedProps(() => ({ x: baseX - 3.5 + dx.value, y: baseY - 10 + dy.value }), [baseX, baseY, dx, dy]);
+  const pHead   = useAnimatedProps(() => ({ cx: baseX + dx.value, cy: baseY - 13 + dy.value }), [baseX, baseY, dx, dy]);
+  const pEyeL   = useAnimatedProps(() => ({ cx: baseX - 1.3 + dx.value, cy: baseY - 13.3 + dy.value }), [baseX, baseY, dx, dy]);
+  const pEyeR   = useAnimatedProps(() => ({ cx: baseX + 1.5 + dx.value, cy: baseY - 13.3 + dy.value }), [baseX, baseY, dx, dy]);
+  const pLabel  = useAnimatedProps(() => ({ x: baseX + dx.value, y: baseY + 8 + dy.value }), [baseX, baseY, dx, dy]);
 
   // Report walking position to parent for thought bubble tracking
   const posRef = useRef(onPosUpdate);
@@ -138,7 +145,7 @@ function WalkingAgent({ agent, baseX, baseY, route, color, onPress, onPosUpdate 
 
   return (
     <G opacity={op}>
-      <ACircle animatedProps={pTouch} r={18} fill="transparent" onPress={onPress} />
+      <ACircle animatedProps={pTouch} r={18} fill="transparent" />
       {act && <ACircle animatedProps={pGlow} r={11} fill={color} opacity={0.22} />}
       <AEllipse animatedProps={pShadow} rx={4} ry={1.5} fill="rgba(0,0,0,0.12)" />
       <ARect animatedProps={pBody} width={7} height={10} rx={2.5} fill={color} />
@@ -165,7 +172,47 @@ function WalkingAgent({ agent, baseX, baseY, route, color, onPress, onPosUpdate 
 
 // ==================== MAIN SCENE ====================
 
-export function ColonyScene({ agents, connected, topInset }: Props) {
+function BirthingPulse({ x, y, color }: { x: number; y: number; color: string }) {
+  const ring1 = useSharedValue(0);
+  const ring2 = useSharedValue(0);
+  const glow = useSharedValue(0);
+
+  useEffect(() => {
+    const ease = Easing.out(Easing.quad);
+    ring1.value = withRepeat(withTiming(1, { duration: 1600, easing: ease }), -1, false);
+    ring2.value = withDelay(800, withRepeat(withTiming(1, { duration: 1600, easing: ease }), -1, false));
+    glow.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0.3, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+  }, [ring1, ring2, glow]);
+
+  const r1Props = useAnimatedProps(() => ({
+    r: 6 + ring1.value * 22,
+    opacity: (1 - ring1.value) * 0.85,
+  }), [ring1]);
+  const r2Props = useAnimatedProps(() => ({
+    r: 6 + ring2.value * 22,
+    opacity: (1 - ring2.value) * 0.6,
+  }), [ring2]);
+  const glowProps = useAnimatedProps(() => ({
+    opacity: 0.15 + glow.value * 0.35,
+  }), [glow]);
+
+  return (
+    <G>
+      <ACircle cx={x} cy={y - 6} r={14} fill={color} animatedProps={glowProps} />
+      <ACircle cx={x} cy={y - 6} r={6} fill="none" stroke={color} strokeWidth={1.6} animatedProps={r1Props} />
+      <ACircle cx={x} cy={y - 6} r={6} fill="none" stroke={color} strokeWidth={1.2} animatedProps={r2Props} />
+    </G>
+  );
+}
+
+export function ColonyScene({ agents, connected, topInset, onAgentPress, birthingAgentId, birthingColor }: Props) {
   const [selected, setSelected] = useState<Agent | null>(null);
 
   // --- Thought bubble system (View overlay that follows walking agents) ---
@@ -215,7 +262,7 @@ export function ColonyScene({ agents, connected, topInset }: Props) {
       ), -1, false,
     );
   }, []);
-  const sparkleP = useAnimatedProps(() => ({ opacity: sparkleOp.value }));
+  const sparkleP = useAnimatedProps(() => ({ opacity: sparkleOp.value }), [sparkleOp]);
 
   // Stable placements — only adds new agents, never resets existing positions
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -368,6 +415,19 @@ export function ColonyScene({ agents, connected, topInset }: Props) {
           animatedProps={sparkleP}
         />
 
+        {/* Birthing pulse — ring animado en la posición del newborn */}
+        {birthingAgentId && (() => {
+          const pl = placements.get(birthingAgentId);
+          if (!pl) return null;
+          return (
+            <BirthingPulse
+              x={pl.pos.x}
+              y={pl.pos.y}
+              color={birthingColor ?? '#FFD700'}
+            />
+          );
+        })()}
+
         {/* Walking agents */}
         {agents.map((a, i) => {
           const pl = placements.get(a.id);
@@ -380,7 +440,6 @@ export function ColonyScene({ agents, connected, topInset }: Props) {
               baseY={pl.pos.y}
               route={pl.route}
               color={getAgentColor(a.id, i)}
-              onPress={() => setSelected(prev => prev?.id === a.id ? null : a)}
               onPosUpdate={(x, y) => {
                 agentPositions.current[a.id] = { x, y };
               }}
@@ -398,10 +457,10 @@ export function ColonyScene({ agents, connected, topInset }: Props) {
         return (
           <Animated.View
             entering={FadeIn.duration(350)}
-            pointerEvents="none"
             style={[styles.bubbleAnchor, {
               left: Math.max(10, Math.min(sx - 70, W - 155)),
               top: Math.max(topInset + 10, sy - 80),
+              pointerEvents: 'none' as const,
             }]}
           >
             <View style={[styles.bubble, { borderLeftColor: agentColor }]}>
@@ -417,6 +476,30 @@ export function ColonyScene({ agents, connected, topInset }: Props) {
           </Animated.View>
         );
       })()}
+
+      {/* Agent click hotspots — outside SVG to avoid DOM event warnings */}
+      {agents.map((a) => {
+        const pl = placements.get(a.id);
+        if (!pl) return null;
+        const sx = ((pl.pos.x - vbX) / vbW) * W;
+        const sy = ((pl.pos.y - vbY) / vbH) * cH + topInset;
+        return (
+          <Pressable
+            key={`hit-${a.id}`}
+            onPress={() => {
+              if (onAgentPress) onAgentPress(a);
+              else setSelected(prev => prev?.id === a.id ? null : a);
+            }}
+            style={{
+              position: 'absolute',
+              left: sx - 22,
+              top: sy - 28,
+              width: 44,
+              height: 44,
+            }}
+          />
+        );
+      })}
 
       {/* Greeting */}
       <View style={[styles.greeting, { top: topInset + 8 }]}>
