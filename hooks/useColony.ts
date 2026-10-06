@@ -101,20 +101,24 @@ export function useColony(options?: UseColonyOptions): UseColonyReturn {
 
   // ── SSE connection ────────────────────────────────────────────────────────
   const connectSSE = useCallback(() => {
+    // Prevent duplicate connections
     if (esRef.current) {
-      esRef.current.close();
+      try { esRef.current.close(); } catch {}
       esRef.current = null;
+    }
+    // Clear any pending retry
+    if (retryRef.current) {
+      clearTimeout(retryRef.current);
+      retryRef.current = null;
     }
 
     try {
-      // EventSource doesn't support custom headers in browsers/RN.
-      // The plugin route must be open (auth: "none") or we use polling.
       const es = new EventSource(SSE_URL);
       esRef.current = es;
 
       es.onopen = () => {
         if (!mountedRef.current) return;
-        // console.log('[SSE] Connected to colony');
+        console.log('[SSE] Connected to colony OK');
         setConnectionState('connected');
         setDataSource('real');
         setError(null);
@@ -181,9 +185,9 @@ export function useColony(options?: UseColonyOptions): UseColonyReturn {
         } catch {}
       });
 
-      es.onerror = () => {
+      es.onerror = (err: any) => {
         if (!mountedRef.current) return;
-        // console.log('[SSE] Disconnected — switching to reconnecting...');
+        console.warn('[SSE] Error/disconnect:', err?.type, err?.message, 'readyState:', es.readyState);
         setConnectionState('reconnecting');
         es.close();
         esRef.current = null;
@@ -232,15 +236,17 @@ export function useColony(options?: UseColonyOptions): UseColonyReturn {
     // Start SSE (falls back to polling internally)
     connectSSE();
 
-    // Retry gateway every 30s when in mock mode
+    // Retry gateway every 30s when offline (check via ref, not stale closure)
     const retryWhenMock = setInterval(async () => {
-      if (dataSource === 'mock') {
-        try {
-          await getStatus();
-          // Gateway came back — reconnect SSE
+      // Only retry if no active SSE connection
+      if (esRef.current) return;
+      try {
+        const status = await getStatus();
+        if (mountedRef.current && status?.colony) {
+          setColony(status.colony);
           connectSSE();
-        } catch {}
-      }
+        }
+      } catch {}
     }, 30_000);
 
     return () => {

@@ -1,10 +1,20 @@
 /**
- * SSE polyfill for React Native.
+ * SSE — platform-aware EventSource.
  *
- * React Native does NOT have a native EventSource implementation.
- * This module re-exports EventSource from react-native-sse so all hooks
- * import from here instead of relying on the global.
+ * Web: uses the browser's native EventSource (works perfectly with CORS).
+ * React Native (iOS/Android): uses react-native-sse polyfill (RN has no native EventSource).
  */
-import RNEventSource from 'react-native-sse';
+import { Platform } from 'react-native';
 
-export default RNEventSource;
+let Impl: typeof EventSource;
+
+if (Platform.OS === 'web' && typeof globalThis.EventSource !== 'undefined') {
+  // Browser has native EventSource — use it directly
+  Impl = globalThis.EventSource;
+} else {
+  // React Native — use polyfill
+  // @ts-ignore — dynamic import for RN only
+  Impl = require('react-native-sse').default;
+}
+
+export default Impl;
