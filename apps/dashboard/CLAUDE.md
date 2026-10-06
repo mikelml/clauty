@@ -22,9 +22,9 @@ App mobile/web del dashboard ClauTY. Expo + React Native con expo-router. Muestr
 | Parámetro | Default | Ubicación | Descripción |
 |---|---|---|---|
 | GATEWAY_URL | `http://127.0.0.1:18789` | `lib/pluginClient.ts:12` | URL base del gateway OpenClaw |
-| AUTH_TOKEN | hardcoded | `lib/pluginClient.ts:13` | Token de auth para el plugin |
+| AUTH_TOKEN | por entorno (`EXPO_PUBLIC_AUTH_TOKEN`) | `lib/pluginClient.ts` | Token de auth para el plugin; nunca en el código |
 | BASE (local) | `http://127.0.0.1:18789` | `constants/config.ts:9` | URL base para desarrollo local |
-| BASE (prod) | `https://tu-gateway.ejemplo.com` | `constants/config.ts:9` | URL base para producción |
+| BASE (prod) | `EXPO_PUBLIC_GATEWAY_URL_PROD` | `constants/config.ts` | URL base para producción (por entorno) |
 | POLL_INTERVAL_MS | 5000 | `hooks/useColony.ts:28` | Intervalo de polling cuando SSE no disponible |
 | RECONNECT_BASE_MS | 1000 | `hooks/useColony.ts:29` | Base para backoff exponencial de SSE |
 | RECONNECT_MAX_MS | 8000 | `hooks/useColony.ts:30` | Máx delay de reconexión SSE |

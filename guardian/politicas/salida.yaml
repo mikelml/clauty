@@ -1,0 +1,47 @@
+# Firewall de salida — borrador v0.1 (T6.3)
+# Cerrado por defecto, en el espíritu de las políticas de red de OpenShell (NemoClaw):
+# nada sale a internet salvo a los destinos que declara cada conector.
+# Límite conocido: esto no detiene la inyección dentro de un destino permitido
+# (ver guardian/README.md §5 y el firewall de acciones).
+
+version: 0.1
+politica: salida
+defecto: negar
+
+# Reglas globales
+reglas:
+  comodines_permitidos: false     # "*" y "*.dominio" están prohibidos
+  compartir_dominios_entre_conectores: false
+  lectura_implica_escritura: false  # GET permitido no habilita POST/PUT/PATCH/DELETE
+  solo_https: true
+
+# Destinos por conector. Los dominios de ejemplo usan example.com (RFC 2606).
+# En la implementación, esta lista se genera desde los manifiestos de conectores/ (dominios_salida).
+destinos:
+  - conector: calendario-consulta
+    dominios: [calendario.example.com]
+    metodos: [GET]
+  - conector: pago-accion
+    dominios: [pagos.example.com]
+    metodos: [GET, POST]
+    sensible: true                # toda salida pide aprobación (abajo)
+
+# Salidas sensibles: pasan por aprobación con MFA agéntico (protocolo §6) aunque el destino esté permitido.
+sensibles:
+  - subir_archivo
+  - llenar_formulario_externo
+  - enviar_dato_personal
+  - cualquier_destino_marcado_sensible
+
+# Exfiltración: datos escondidos en parámetros de URL o subdominios hacia destinos permitidos.
+# Los umbrales concretos los fija la implementación y se prueban con la suite de ataques.
+exfiltracion:
+  revisar: [longitud_de_query, entropia_de_parametros, subdominios_generados, tamano_de_cuerpo]
+  al_detectar: bloquear_y_avisar
+
+# Bitácora de cada salida, permitida o no.
+registro:
+  campos: [conector, destino, metodo, tamano, decision]
+  cuerpo_en_claro: false
+
+# Traducción al formato de políticas de OpenShell: guardian/traductores/openshell (semana 2).

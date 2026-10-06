@@ -1,0 +1,46 @@
+# Niveles de autonomía — borrador v0.1 (T6.6)
+# El dueño fija la autonomía por dominio; nunca supera lo que permite la confianza ganada.
+# Dueño único de la tabla confianza → nivel máximo.
+
+version: 0.1
+politica: autonomia
+defecto: 1                     # sugiere: no actúa, solo propone
+
+niveles:
+  0: observa
+  1: sugiere
+  2: actua_con_aprobacion
+  3: actua_y_avisa
+  4: actua_solo_dentro_de_topes
+
+# Nivel máximo según la confianza del Clauty (o del alcance, si tiene por_alcance).
+# Alineado con los umbrales: sugerir 10, crear 40, modificar 60, borrar 80.
+tope_por_confianza:
+  - { desde: 0,  hasta: 9,   nivel_maximo: 0 }
+  - { desde: 10, hasta: 39,  nivel_maximo: 1 }
+  - { desde: 40, hasta: 59,  nivel_maximo: 2 }
+  - { desde: 60, hasta: 79,  nivel_maximo: 3 }
+  - { desde: 80, hasta: 100, nivel_maximo: 4 }
+# Ejemplo que el validador rechaza: nivel 4 con confianza 50 (máximo 2).
+
+# Nivel por dominio y por clase de acción. Ejemplo para un Clauty de casa:
+por_dominio:
+  calendario: { consulta: 3, accion: 2 }
+  pagos:      { consulta: 1, accion: 0 }
+  correo:     { consulta: 2, accion: 1 }
+
+subir:
+  requiere_acciones_aprobadas_sin_reversa: 20   # en el nivel actual
+  requiere: aprobacion_del_dueno
+  un_nivel_a_la_vez: true
+
+bajar:
+  por_reversa_por_error: 1          # baja un nivel y avisa
+  por_queja_verificada: 1
+  por_queja_sin_verificar: 0        # no baja nada; el interruptor congela y verifica
+
+excepciones:
+  clauty_1: ninguna                 # el Clauty 1 sigue las mismas reglas
+
+# Siempre, en cualquier nivel: lo irreversible pide aprobación (acciones.yaml)
+# y el gasto respeta gasto.yaml.

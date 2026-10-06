@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clauty:esquemas:v0.1:confianza",
+  "title": "Perfil de confianza (confianza.yaml)",
+  "description": "Qué puede hacer un Clauty por sí solo (T2.7, T3.3). Es la confianza ganada del agente (0-100); el origen del mensaje (0-5) es otra escala y vive en protocolo/SPEC-v0.1.md.",
+  "type": "object",
+  "required": ["nivel", "umbrales", "por_alcance", "congelado", "compras"],
+  "additionalProperties": false,
+  "$defs": {
+    "nivel": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "id_evento": { "type": "string", "pattern": "^[A-Z]-[0-9]{8}-[0-9]{2,4}$" }
+  },
+  "properties": {
+    "nivel": {
+      "$ref": "#/$defs/nivel",
+      "description": "Confianza global ganada. Arranca en 20."
+    },
+    "umbrales": {
+      "type": "object",
+      "description": "Confianza mínima por clase de acción. Defectos de v1: 10/40/60/80/95.",
+      "required": ["sugerir", "crear", "modificar", "borrar", "sistema"],
+      "additionalProperties": false,
+      "properties": {
+        "sugerir": { "$ref": "#/$defs/nivel", "default": 10 },
+        "crear": { "$ref": "#/$defs/nivel", "default": 40 },
+        "modificar": { "$ref": "#/$defs/nivel", "default": 60 },
+        "borrar": { "$ref": "#/$defs/nivel", "default": 80 },
+        "sistema": { "$ref": "#/$defs/nivel", "default": 95 }
+      }
+    },
+    "por_alcance": {
+      "type": "object",
+      "description": "Confianza por dominio (calendario, pagos...). Un alcance por encima del nivel global exige aprobado_en; eso lo revisa el validador (E-ALCANCE-SIN-APROBACION).",
+      "propertyNames": { "pattern": "^[a-z0-9-]{2,32}$" },
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/$defs/nivel" },
+          {
+            "type": "object",
+            "required": ["nivel"],
+            "additionalProperties": false,
+            "properties": {
+              "nivel": { "$ref": "#/$defs/nivel" },
+              "aprobado_en": { "$ref": "#/$defs/id_evento" }
+            }
+          }
+        ]
+      }
+    },
+    "congelado": {
+      "type": "boolean",
+      "description": "true bloquea todo menos sugerir. Congelar antes de matar."
+    },
+    "compras": {
+      "type": "object",
+      "description": "Regla de compra: confianza >= umbral o aprobación del dueño, y siempre bajo el tope diario.",
+      "required": ["umbral", "tope_diario", "moneda"],
+      "additionalProperties": false,
+      "properties": {
+        "umbral": { "$ref": "#/$defs/nivel", "default": 90 },
+        "tope_diario": { "type": "number", "minimum": 0, "description": "0 = no compra sin aprobación." },
+        "moneda": { "type": "string", "pattern": "^[A-Z]{3}$", "description": "ISO 4217." }
+      }
+    }
+  }
+}

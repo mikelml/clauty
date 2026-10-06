@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clauty:esquemas:v0.1:evento-crianza",
+  "title": "Evento de crianza",
+  "description": "Una línea de crianza/eventos.jsonl (T3.1). Crianza no es entrenamiento: no existen campos de datos de entrenamiento ni de ajuste de pesos, y additionalProperties: false los rechaza.",
+  "type": "object",
+  "required": [
+    "id",
+    "tipo",
+    "clauty",
+    "autor",
+    "origen",
+    "fecha",
+    "motivo"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]-[0-9]{8}-[0-9]{2,4}$",
+      "description": "Letra de tipo + fecha + secuencia. Las propuestas usan P-AAAAMMDD-NN."
+    },
+    "tipo": {
+      "enum": [
+        "retroalimentacion",
+        "reflexion",
+        "propuesta",
+        "aprobacion",
+        "rechazo",
+        "olvido",
+        "adopcion",
+        "confianza"
+      ]
+    },
+    "clauty": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{2,32}$"
+    },
+    "autor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Quién genera el evento: el id del Clauty, 'dueno' o el did de quien firma. Nunca un nombre de persona."
+    },
+    "origen": {
+      "enum": [
+        "UNKNOWN",
+        "EXTERNAL",
+        "MIKENET",
+        "AGENT",
+        "VERIFIED",
+        "OWNER"
+      ],
+      "description": "Origen del mensaje que provocó el evento (tabla en protocolo/SPEC-v0.1.md)."
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "motivo": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "valor": {
+      "enum": [
+        "positiva",
+        "negativa"
+      ],
+      "description": "Solo retroalimentacion."
+    },
+    "propuesta": {
+      "type": "string",
+      "pattern": "^P-[0-9]{8}-[0-9]{2,4}$",
+      "description": "Propuesta a la que responde una aprobacion o un rechazo."
+    },
+    "diff": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Parche unificado. Solo puede tocar SOUL.md, skills/ o confianza.yaml."
+    },
+    "evidencia": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]-[0-9]{8}-[0-9]{2,4}$"
+      },
+      "description": "Ids de eventos que justifican la propuesta."
+    },
+    "reversa_de": {
+      "type": "string",
+      "pattern": "^[A-Z]-[0-9]{8}-[0-9]{2,4}$",
+      "description": "En una aprobacion de reversa: el evento que se revierte."
+    },
+    "delta": {
+      "type": "integer",
+      "minimum": -100,
+      "maximum": 100,
+      "description": "Solo confianza."
+    },
+    "alcance": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{2,32}$",
+      "description": "Alcance afectado; vacío = global."
+    },
+    "cantidad": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Solo olvido: cuántas entradas se olvidaron. El recibo nunca lleva textos ni claves."
+    },
+    "padres": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{2,32}@[1-9][0-9]*$"
+      },
+      "description": "Solo adopcion."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "propuesta"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "propuesta",
+          "diff",
+          "evidencia"
+        ],
+        "properties": {
+          "propuesta": true,
+          "diff": true,
+          "evidencia": true
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "enum": [
+              "aprobacion",
+              "rechazo"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "propuesta"
+        ],
+        "properties": {
+          "origen": {
+            "const": "OWNER"
+          },
+          "propuesta": true
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "retroalimentacion"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "valor"
+        ],
+        "properties": {
+          "valor": true
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "confianza"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "delta"
+        ],
+        "properties": {
+          "delta": true
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "olvido"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "cantidad"
+        ],
+        "properties": {
+          "cantidad": true
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tipo": {
+            "const": "adopcion"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "padres"
+        ],
+        "properties": {
+          "padres": true
+        }
+      }
+    }
+  ]
+}

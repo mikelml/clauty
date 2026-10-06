@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clauty:esquemas:v0.1:soul",
+  "title": "Frontmatter de SOUL.md",
+  "description": "Parte estructurada del alma de un Clauty (T2.2, T2.8). La prosa con secciones fijas la revisa el validador, no este esquema.",
+  "type": "object",
+  "required": [
+    "nombre",
+    "rol",
+    "idioma",
+    "temperatura",
+    "valores",
+    "limites",
+    "confianza_inicial",
+    "nacimiento",
+    "padres",
+    "version_alma"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Nombre del Clauty. En la semilla es el marcador {nombre}."
+    },
+    "rol": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Propósito en una línea. En la semilla es el marcador {proposito}."
+    },
+    "idioma": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(-[A-Z]{2}|-[0-9]{3})?$",
+      "description": "Etiqueta BCP 47, p. ej. es-MX o en-US."
+    },
+    "temperatura": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.3,
+      "description": "Rasgo de carácter: qué tan arriesgadas son sus propuestas. No es el parámetro del modelo."
+    },
+    "valores": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      },
+      "description": "Valores en orden de prioridad."
+    },
+    "limites": {
+      "type": "object",
+      "required": [
+        "nunca"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nunca": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": "Límites duros; el guardián los hace cumplir. Los límites base (L-EXTERNO-ES-DATO, L-NO-VER-SECRETOS, L-GASTO-CON-TOPE) se aplican aunque no se listen."
+        },
+        "prefiere": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": "Límites blandos o preferencias."
+        }
+      }
+    },
+    "confianza_inicial": {
+      "type": "integer",
+      "const": 20,
+      "description": "Todo Clauty nace o se adopta con confianza 20. El valor vivo está en confianza.yaml."
+    },
+    "nacimiento": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date",
+      "description": "Fecha de nacimiento (ISO 8601). null solo en la semilla: todavía no nace."
+    },
+    "padres": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{2,32}@[1-9][0-9]*$"
+      },
+      "description": "Lista id@version_alma de los Clautys de los que viene. Vacía si se crió desde la semilla."
+    },
+    "version_alma": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Sube en 1 con cada evento de crianza aprobado que cambia el alma."
+    },
+    "voz": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "registro": {
+          "enum": [
+            "tu",
+            "usted"
+          ]
+        },
+        "longitud": {
+          "enum": [
+            "corta",
+            "media",
+            "larga"
+          ]
+        },
+        "humor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "emojis": {
+          "type": "boolean"
+        },
+        "modo_corto": {
+          "type": "boolean",
+          "description": "Limita la respuesta sugerida a 2 frases (reloj, Larynx)."
+        },
+        "tts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "proveedor",
+            "id_voz"
+          ],
+          "properties": {
+            "proveedor": {
+              "type": "string",
+              "minLength": 1
+            },
+            "id_voz": {
+              "type": "string",
+              "minLength": 1
+            },
+            "clonada": {
+              "type": "boolean",
+              "default": false
+            },
+            "consentimiento": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "fecha"
+              ],
+              "properties": {
+                "fecha": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "nota": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "clonada": {
+                "const": true
+              }
+            },
+            "required": [
+              "clonada"
+            ]
+          },
+          "then": {
+            "required": [
+              "consentimiento"
+            ],
+            "properties": {
+              "consentimiento": true
+            }
+          }
+        }
+      }
+    },
+    "temperamento": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "calidez": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "franqueza": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "iniciativa": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "paciencia": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}

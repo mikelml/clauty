@@ -1,0 +1,33 @@
+# Topes de gasto — borrador v0.1 (formato público; la implementación es T6.5, en la app)
+# Sin tope declarado no hay gasto. Los topes solo se suben con el dueño y MFA.
+
+version: 0.1
+politica: gasto
+defecto: negar                 # sin tope = sin gasto
+
+moneda: MXN                    # ISO 4217; cada Clauty puede declarar la suya en confianza.yaml
+
+topes:
+  por_compra: 0                # 0 = toda compra pide aprobación
+  diario: 0                    # suma de compras del día, por Clauty
+  mensual_colonia: 0           # suma de toda la colonia
+  consumo_de_modelo_mensual: 0 # tokens/cómputo; 0 = solo lo que ya cubre la suscripción
+
+medios_de_pago:
+  tarjeta_de_un_solo_uso: obligatoria   # cada compra con su propia tarjeta virtual de monto exacto
+  tarjeta_real_al_agente: prohibida     # el agente nunca ve el número de una tarjeta (bóveda)
+
+regla_de_compra:
+  confianza_minima: 90         # o aprobación explícita del dueño
+  siempre_bajo_tope: true      # la confianza nunca salta el tope
+
+al_acercarse:
+  avisar_en_porcentaje: 80
+al_superar:
+  accion: bloquear_y_avisar    # nunca sube el tope por su cuenta
+subir_tope:
+  requiere: [OWNER, mfa]
+  queda_en_bitacora: true      # tipo cambio_tope
+
+# Sin anuncios: no hay gasto patrocinado ni "sugerencias pagadas". Una marca puede criar
+# su propio Clauty, etiquetado como suyo, pero nunca gasta desde el tuyo.

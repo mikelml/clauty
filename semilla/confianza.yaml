@@ -1,0 +1,19 @@
+# Perfil de confianza de la semilla (T2.7, T3.3). Esquema: alma/esquemas/confianza.schema.json
+# La confianza no se configura: se gana. Este archivo solo cambia por eventos de crianza.
+nivel: 20                 # todo Clauty arranca en 20
+
+umbrales:                 # confianza mínima por clase de acción (los de v1)
+  sugerir: 10
+  crear: 40
+  modificar: 60
+  borrar: 80
+  sistema: 95             # reservado: solo con aprobación explícita del dueño
+
+por_alcance: {}           # p. ej. calendario: 60 — ninguno supera el global sin aprobado_en
+
+congelado: false          # true = solo puede sugerir (congelar antes de matar)
+
+compras:
+  umbral: 90              # compra sola solo con confianza >= 90; si no, pide aprobación
+  tope_diario: 0          # 0 = ninguna compra sin aprobación; siempre bajo el tope
+  moneda: MXN

@@ -9,7 +9,7 @@ import { STATUS_URL, CHAT_URL } from '@/constants/config';
 import type { ColonyStatus, ChatResponse } from './types';
 
 export const GATEWAY_URL = 'http://127.0.0.1:18789';
-export const AUTH_TOKEN = '<TU_TOKEN_DEL_GATEWAY>';
+export const AUTH_TOKEN = process.env.EXPO_PUBLIC_AUTH_TOKEN ?? '';
 
 const DEFAULT_HEADERS = {
   'Authorization': `Bearer ${AUTH_TOKEN}`,
