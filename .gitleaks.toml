@@ -1,0 +1,48 @@
+# Configuración de gitleaks para clauty (borrador v0.1, epic T1.5.03).
+# Extiende las reglas por defecto con cuatro reglas de privacidad del público.
+# La lista negra de términos privados NO vive aquí: el CI la lee de un secreto de Actions (T1.5.09).
+
+title = "clauty"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "ip-publica"
+description = "Dirección IPv4 (las privadas, loopback y de documentación se permiten)"
+regex = '''\b(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\b'''
+keywords = ["."]
+  [rules.allowlist]
+  regexes = [
+    '''\b127\.0\.0\.1\b''',
+    '''\b0\.0\.0\.0\b''',
+    '''\b10\.(?:[0-9]{1,3}\.){2}[0-9]{1,3}\b''',
+    '''\b192\.168\.[0-9]{1,3}\.[0-9]{1,3}\b''',
+    '''\b172\.(?:1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}\b''',
+    '''\b(?:192\.0\.2|198\.51\.100|203\.0\.113)\.[0-9]{1,3}\b''',
+  ]
+  # Trazos SVG de logos: sus coordenadas (p. ej. "3.08 3.08 0 0") parecen IPs y no lo son.
+  paths = ['''(apps/dashboard/)?components/IntegrationLogo\.tsx''']
+
+[[rules]]
+id = "correo-personal"
+description = "Correo de un proveedor personal"
+regex = '''[A-Za-z0-9._%+-]+@(?:gmail|googlemail|hotmail|outlook|live|icloud|me|yahoo|proton|protonmail)\.[A-Za-z.]{2,}'''
+keywords = ["@"]
+
+[[rules]]
+id = "rfc-mx"
+description = "RFC mexicano (persona física o moral)"
+regex = '''\b[A-ZÑ&]{3,4}[0-9]{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]\b'''
+
+[[rules]]
+id = "curp-mx"
+description = "CURP mexicana"
+regex = '''\b[A-Z][AEIOUX][A-Z]{2}[0-9]{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12][0-9]|3[01])[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9][0-9]\b'''
+
+[allowlist]
+description = "Fixtures de fugas a propósito y llaves de prueba del protocolo (SOLO PRUEBAS)"
+paths = [
+  '''tests/fixtures/fugas/''',
+  '''protocolo/vectores/llaves-prueba/''',
+]

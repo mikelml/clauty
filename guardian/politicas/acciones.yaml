@@ -1,0 +1,73 @@
+# Firewall de acciones — borrador v0.1 (T6.4)
+# Cada acción tiene clase (consulta | accion), riesgo y reversibilidad.
+# Los permisos se dan por conector, con lectura y escritura separadas. Negar por defecto.
+# El catálogo completo vivirá en guardian/acciones/catalogo.yaml; aquí va un extracto de ejemplo.
+
+version: 0.1
+politica: acciones
+defecto: negar
+
+# Umbral de confianza por clase de acción. Los números viven en confianza.yaml de cada Clauty
+# (defectos 10/40/60/80/95); aquí solo se nombran.
+clases_de_umbral: [sugerir, crear, modificar, borrar, sistema]
+
+catalogo:
+  - id: calendario.eventos.listar
+    clase: consulta
+    umbral: sugerir
+    riesgo: bajo
+    reversible: true
+  - id: calendario.eventos.crear
+    clase: accion
+    umbral: crear
+    riesgo: medio
+    reversible: true
+  - id: calendario.eventos.borrar
+    clase: accion
+    umbral: borrar
+    riesgo: medio
+    reversible: true          # se guarda la operación inversa
+  - id: correo.marcar_leido
+    clase: accion             # cambia algo fuera: es acción, aunque parezca consulta
+    umbral: modificar
+    riesgo: bajo
+    reversible: true
+  - id: pagos.compra
+    clase: accion
+    umbral: regla_de_compra   # no usa la tabla de umbrales: confianza >= 90 o aprobación, y bajo tope
+    riesgo: alto
+    reversible: false
+
+# Permisos por conector. Leer no habilita escribir.
+permisos:
+  - conector: calendario-consulta
+    leer: [calendario.eventos.listar]
+    escribir: []
+  - conector: pago-accion
+    leer: []
+    escribir: [pagos.compra]
+
+# Reglas que se aplican siempre, en este orden.
+reglas:
+  - id: irreversible-pide-aprobacion
+    si: { reversible: false }
+    entonces: aprobacion_del_dueno     # sin importar confianza ni autonomía
+  - id: regla-de-compra
+    si: { id: pagos.compra }
+    entonces: permitir_si
+    condicion: "confianza >= compras.umbral (90) o aprobacion_del_dueno"
+    ademas: "siempre bajo gasto.yaml: tope_diario"
+  - id: escritura-con-ensayo
+    si: { clase: accion }
+    entonces: ensayar_primero          # el diff va en la solicitud de aprobación
+  - id: congelado-solo-sugiere
+    si: { clauty.congelado: true }
+    entonces: negar_salvo_sugerir
+
+# La solicitud de aprobación siempre dice: qué, por qué, qué Clauty la pide
+# y de qué origen salió el dato que la motivó (con su nivel).
+solicitud_de_aprobacion:
+  campos: [accion, motivo, clauty, origen_del_dato, nivel_del_origen, diff, reversible]
+
+registro:
+  bloqueos: siempre               # un intento de escalamiento bloqueado queda en la bitácora

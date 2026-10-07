@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:clauty:esquemas:v0.1:clauty",
+  "title": "Manifiesto de un Clauty (clauty.yaml)",
+  "description": "Identidad y estado de la carpeta (T2.1, T1.7, T2.5, T2.6, T2.10, T3.8).",
+  "type": "object",
+  "required": ["id", "nombre", "formato", "idioma", "edicion", "acta"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]{2,32}$" },
+    "nombre": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "formato": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "description": "SemVer del formato de carpeta."
+    },
+    "idioma": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Z]{2}|-[0-9]{3})?$" },
+    "edicion": { "type": "string", "pattern": "^[0-9]{4}$" },
+    "acta": {
+      "type": "object",
+      "required": ["origen", "estado"],
+      "additionalProperties": false,
+      "properties": {
+        "origen": { "enum": ["nace", "adopta", "cria"] },
+        "estado": { "enum": ["vivo", "dormido", "panteon"] }
+      }
+    },
+    "reflexion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "cada": { "enum": ["diaria", "semanal", "mensual"], "default": "semanal" } }
+    },
+    "skills": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9-]{2,64}$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["sha256", "estado"],
+        "additionalProperties": false,
+        "properties": {
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "estado": { "enum": ["propuesta", "activa", "dormida", "panteon"] }
+        }
+      }
+    },
+    "ficha": {
+      "type": "object",
+      "required": ["proposito", "criado_por", "licencia", "etiquetas"],
+      "additionalProperties": false,
+      "properties": {
+        "proposito": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "criado_por": { "type": "string", "minLength": 1, "maxLength": 80, "description": "Rol de quien lo crió, nunca su nombre." },
+        "licencia": { "type": "string", "minLength": 1, "description": "Identificador SPDX." },
+        "etiquetas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z0-9-]{2,32}$" }
+        }
+      }
+    },
+    "objetivos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["objetivo", "indicador"],
+        "additionalProperties": false,
+        "properties": {
+          "objetivo": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "indicador": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "fecha": { "type": "string", "format": "date" }
+        }
+      }
+    }
+  }
+}

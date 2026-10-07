@@ -1,0 +1,12 @@
+# Manifiesto de la semilla (T2.1, T2.3). Esquema: alma/esquemas/clauty.schema.json
+id: semilla
+nombre: "{nombre}"
+formato: 0.1.0
+idioma: es-MX             # BCP 47; se cambia en la primera conversación
+edicion: "2026"
+acta:
+  origen: cria            # criado desde la semilla en blanco
+  estado: vivo
+reflexion:
+  cada: semanal
+skills: {}                # la semilla no trae skills; las base llegan con el instalador (T4.7)
